@@ -1,37 +1,26 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Security.Cryptography;
-using UnityEditor;
+﻿using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.UI;
-using Random = UnityEngine.Random;
 
 public class Animal : MonoBehaviour
 {
     private System.Random _rnd;
     public float MovementSensitivity = 0.05f;
     private float _age;
-    private float _thirst;
-    private float _hunger;
-    private float _mating;
     private TextMesh _textHolder;
     public float NeedsSensitivity;
     public float SearchRadius = 15f;
-    private Dictionary<string, IFindNeeds> _needsFinder;
+    private Dictionary<string, FindNeeds> _needsFinder;
 
     void Start()
     {
         _age = 100f;
-        _thirst = 100f;
-        _hunger = 100f;
-        _mating = 150f;
         _rnd = new System.Random();
         _textHolder = GetComponentInChildren<TextMesh>();
-        _needsFinder = new Dictionary<string, IFindNeeds>()
+        _needsFinder = new Dictionary<string, FindNeeds>()
         {
-            {"Drink", new Drink(SearchRadius, transform)},
-            {"Mating", new Mating(SearchRadius, transform)},
-            {"Food", new Food(SearchRadius, transform)}
+            {"Drink", new Drink(SearchRadius, transform, 75f)},
+            {"Mating", new Mating(SearchRadius, transform, 120f)},
+            {"Food", new Food(SearchRadius, transform, 100f)}
         };
     }
 
@@ -59,43 +48,63 @@ public class Animal : MonoBehaviour
 
     private bool FindNeeds(out Vector3 towards)
     {
-        if (_hunger < _mating && _hunger < _thirst)
+        if (_needsFinder["Food"].Need < _needsFinder["Mating"].Need &&
+            _needsFinder["Food"].Need < _needsFinder["Drink"].Need)
         {
-            return _needsFinder["Food"].FindNeeds(out towards);
+            Debug.Log("Search Food");
+            return _needsFinder["Food"].Find(out towards);
         }
 
-        if (_mating < _hunger && _mating < _thirst)
+        if (_needsFinder["Mating"].Need < _needsFinder["Food"].Need &&
+            _needsFinder["Mating"].Need < _needsFinder["Drink"].Need)
         {
-            return _needsFinder["Mating"].FindNeeds(out towards);
+            Debug.Log("Search Mate");
+            return _needsFinder["Mating"].Find(out towards);
         }
 
-        if (_thirst < _mating && _thirst < _hunger)
+        if (_needsFinder["Drink"].Need < _needsFinder["Mating"].Need &&
+            _needsFinder["Drink"].Need < _needsFinder["Food"].Need)
         {
-            return _needsFinder["Drink"].FindNeeds(out towards);
+            Debug.Log("Search Drink");
+            return _needsFinder["Drink"].Find(out towards);
         }
 
-        return _needsFinder["Drink"].FindNeeds(out towards);
+        return _needsFinder["Drink"].Find(out towards);
     }
 
     private void UpdateNeeds()
     {
         //_age -= NeedsSensitivity;
-        _thirst -= NeedsSensitivity;
-        _hunger -= NeedsSensitivity;
-        _mating -= NeedsSensitivity;
+        foreach (var need in _needsFinder.Values)
+        {
+            need.Need -= NeedsSensitivity;
+        }
     }
 
     private void UpdateText()
     {
-        _textHolder.text = "Age: " + _age.ToString() + "\nThirst: " + _thirst + "\nHunder: " + _hunger + "\nMating: " +
-                           _mating;
+        string text = "";
+        foreach (var need in _needsFinder.Values)
+        {
+            text += need.ToString() + '\n';
+        }
+
+        _textHolder.text = text;
     }
 
     private void Kill()
     {
-        if (_age < 0.1f || _thirst < 0.1f || _hunger < 0.1f)
+        if (_age < 0.1f)
         {
             Destroy(gameObject);
+        }
+
+        foreach (var need in _needsFinder.Values)
+        {
+            if (need.Need < 0.1f)
+            {
+                Destroy(gameObject);
+            }
         }
     }
 
